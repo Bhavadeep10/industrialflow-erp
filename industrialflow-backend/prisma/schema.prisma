@@ -6,3 +6,289 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// =========================
+// ENUMS
+// =========================
+
+enum UserRole {
+  ADMIN
+  SALES_USER
+}
+
+enum EnquiryStatus {
+  NEW
+  QUOTED
+  WON
+  LOST
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum SalesOrderStatus {
+  PENDING
+  CONFIRMED
+  DISPATCHED
+  CANCELLED
+}
+
+// =========================
+// USER
+// =========================
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(SALES_USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  enquiries  Enquiry[]  @relation("EnquiryCreatedBy")
+  quotations Quotation[] @relation("QuotationCreatedBy")
+}
+
+// =========================
+// CUSTOMER
+// =========================
+
+model Customer {
+  id            Int      @id @default(autoincrement())
+  companyName   String
+  contactPerson String
+  mobile        String
+  email         String
+  city          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  enquiries   Enquiry[]
+  quotations  Quotation[]
+  salesOrders SalesOrder[]
+
+  @@index([companyName])
+}
+
+// =========================
+// PRODUCT
+// =========================
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  productCode String   @unique
+  productName String
+  category    String
+  unit        String
+  basePrice   Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory       Inventory?
+  enquiryItems    EnquiryItem[]
+  quotationItems  QuotationItem[]
+  salesOrderItems SalesOrderItem[]
+  dispatchItems   DispatchItem[]
+
+  @@index([productName])
+  @@index([category])
+}
+
+// =========================
+// INVENTORY
+// =========================
+
+model Inventory {
+  id               Int      @id @default(autoincrement())
+  productId        Int      @unique
+  physicalQuantity Int      @default(0)
+  reservedQuantity Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([productId])
+}
+
+// =========================
+// ENQUIRY
+// =========================
+
+model Enquiry {
+  id           Int           @id @default(autoincrement())
+  enquiryNumber String        @unique
+  customerId   Int
+  createdById  Int
+  enquiryDate  DateTime      @default(now())
+  requiredDate DateTime
+  notes        String?
+  status       EnquiryStatus @default(NEW)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  customer  Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy User         @relation("EnquiryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items     EnquiryItem[]
+  quotations Quotation[]
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([status])
+  @@index([enquiryDate])
+}
+
+// =========================
+// ENQUIRY ITEM
+// =========================
+
+model EnquiryItem {
+  id        Int @id @default(autoincrement())
+  enquiryId Int
+  productId Int
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([enquiryId, productId])
+  @@index([productId])
+}
+
+// =========================
+// QUOTATION
+// =========================
+
+model Quotation {
+  id             Int             @id @default(autoincrement())
+  quotationNumber String          @unique
+  enquiryId      Int
+  customerId     Int
+  createdById    Int
+  validUntil     DateTime
+  status         QuotationStatus @default(DRAFT)
+  grandTotal     Decimal         @db.Decimal(14, 2) @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  enquiry    Enquiry         @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  customer   Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy  User            @relation("QuotationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items      QuotationItem[]
+  salesOrder SalesOrder?
+
+  @@index([enquiryId])
+  @@index([customerId])
+  @@index([createdById])
+  @@index([status])
+}
+
+// =========================
+// QUOTATION ITEM
+// =========================
+
+model QuotationItem {
+  id          Int     @id @default(autoincrement())
+  quotationId Int
+  productId   Int
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(12, 2)
+  discountPct Decimal @db.Decimal(5, 2) @default(0)
+  gstPct      Decimal @db.Decimal(5, 2) @default(0)
+  lineAmount  Decimal @db.Decimal(14, 2)
+  createdAt   DateTime @default(now())
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([quotationId, productId])
+  @@index([productId])
+}
+
+// =========================
+// SALES ORDER
+// =========================
+
+model SalesOrder {
+  id              Int             @id @default(autoincrement())
+  orderNumber     String          @unique
+  customerId      Int
+  quotationId     Int             @unique
+  orderDate       DateTime        @default(now())
+  totalAmount     Decimal         @db.Decimal(14, 2)
+  status          SalesOrderStatus @default(PENDING)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  customer  Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  quotation Quotation       @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  items     SalesOrderItem[]
+  dispatches Dispatch[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([orderDate])
+}
+
+// =========================
+// SALES ORDER ITEM
+// =========================
+
+model SalesOrderItem {
+  id          Int @id @default(autoincrement())
+  salesOrderId Int
+  productId   Int
+  quantity    Int
+  createdAt   DateTime @default(now())
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([salesOrderId, productId])
+  @@index([productId])
+}
+
+// =========================
+// DISPATCH
+// =========================
+
+model Dispatch {
+  id           Int      @id @default(autoincrement())
+  dispatchNumber String   @unique
+  salesOrderId Int
+  dispatchDate DateTime @default(now())
+  vehicleNumber String
+  driverName   String
+  createdAt    DateTime @default(now())
+
+  salesOrder SalesOrder     @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  items      DispatchItem[]
+
+  @@index([salesOrderId])
+  @@index([dispatchDate])
+}
+
+// =========================
+// DISPATCH ITEM
+// =========================
+
+model DispatchItem {
+  id         Int @id @default(autoincrement())
+  dispatchId Int
+  productId  Int
+  quantity   Int
+  createdAt  DateTime @default(now())
+
+  dispatch Dispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([dispatchId, productId])
+  @@index([productId])
+}
