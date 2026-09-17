@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import "./App.css";
 
-const API_URL = "http://localhost:5001/api";
+const API_URL = "https://industrialflow-backend.onrender.com/api";
 
 const api = axios.create({
   baseURL: API_URL,
