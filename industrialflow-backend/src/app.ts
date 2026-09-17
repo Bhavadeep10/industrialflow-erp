@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes";
 import protectedRoutes from "./routes/protectedRoutes";
 import customerRoutes from "./routes/customerRoutes";
 import enquiryRoutes from "./routes/enquiryRoutes";
+import quotationRoutes from "./routes/quotationRoutes";
 
 const app = express();
 
@@ -21,6 +22,9 @@ app.use("/api/customers", customerRoutes);
 
 // Enquiry routes
 app.use("/api/enquiries", enquiryRoutes);
+
+// Quotation routes
+app.use("/api/quotations", quotationRoutes);
 
 // Health check
 app.get("/", (_req, res) => {
