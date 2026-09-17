@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 
 import authRoutes from "./routes/authRoutes";
 import protectedRoutes from "./routes/protectedRoutes";
@@ -11,6 +12,16 @@ import inventoryRoutes from "./routes/inventoryRoutes";
 import dispatchRoutes from "./routes/dispatchRoutes";
 
 const app = express();
+
+// Allow React frontend
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
+  }),
+);
 
 app.use(express.json());
 
