@@ -16,7 +16,7 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin: "http://localhost:5175",
+    origin: "https://industrialflow-erp.vercel.app",
   }),
 );
 
