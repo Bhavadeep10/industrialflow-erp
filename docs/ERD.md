@@ -31,10 +31,10 @@ erDiagram
     }
 
     INVENTORY {
-        int id PK
-        int productId FK UK
-        int physicalQuantity
-        int reservedQuantity
+    int id PK
+    int productId FK
+    int physicalQuantity
+    int reservedQuantity
     }
 
     ENQUIRY {
@@ -80,7 +80,7 @@ erDiagram
         int id PK
         string orderNumber UK
         int customerId FK
-        int quotationId FK UK
+        int quotationId FK
         date orderDate
         decimal totalAmount
         string status
