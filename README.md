@@ -173,8 +173,6 @@ npm install
 
 Create a .env file and add the database connection details.
 
-PORT=5001
-
 Run the database migration:
 
 npx prisma migrate dev
@@ -189,7 +187,7 @@ npm run dev
 
 The backend runs on:
 
-http://localhost:5001
+https://industrialflow-backend.onrender.com
 
 Frontend setup:
 
@@ -201,7 +199,7 @@ npm run dev
 
 The frontend runs on:
 
-http://localhost:5175
+https://industrialflow-erp.vercel.app
 
 ## Testing
 
