@@ -9,20 +9,17 @@ import enquiryRoutes from "./routes/enquiryRoutes";
 import quotationRoutes from "./routes/quotationRoutes";
 import salesOrderRoutes from "./routes/salesOrderRoutes";
 import inventoryRoutes from "./routes/inventoryRoutes";
-import dispatchRoutes from "./routes/dispatchRoutes";
 
 const app = express();
 
-// Allow React frontend
+// CORS configuration
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-    ],
+    origin: "http://localhost:5175",
   }),
 );
 
+// Parse JSON request bodies
 app.use(express.json());
 
 // Authentication routes
@@ -45,9 +42,6 @@ app.use("/api/sales-orders", salesOrderRoutes);
 
 // Inventory routes
 app.use("/api/inventory", inventoryRoutes);
-
-// Dispatch routes
-app.use("/api/dispatches", dispatchRoutes);
 
 // Health check
 app.get("/", (_req, res) => {
