@@ -1542,42 +1542,38 @@ function Quotations() {
 
 function SalesOrders() {
   const [orders, setOrders] = useState([]);
+  const [quotations, setQuotations] = useState([]);
   const [message, setMessage] = useState("");
+  const [quotationId, setQuotationId] = useState("");
 
-  const loadOrders = async () => {
+  const loadData = async () => {
     try {
-      const response =
-        await api.get("/sales-orders");
+      const [orderResponse, quotationResponse] =
+        await Promise.all([
+          api.get("/sales-orders"),
+          api.get("/quotations"),
+        ]);
 
-      setOrders(
-        response.data.salesOrders || [],
-      );
+      setOrders(orderResponse.data.salesOrders || []);
+      setQuotations(quotationResponse.data.quotations || []);
     } catch (error) {
-      setMessage(
-        "Unable to load sales orders.",
-      );
+      setMessage("Unable to load sales order data.");
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    loadData();
   }, []);
 
-  const updateStatus = async (
-    orderId,
-    status,
-  ) => {
+  const updateStatus = async (orderId, status) => {
     try {
       await api.patch(
         `/sales-orders/${orderId}/status`,
         { status },
       );
 
-      setMessage(
-        `Sales order updated to ${status}.`,
-      );
-
-      loadOrders();
+      setMessage(`Sales order updated to ${status}.`);
+      loadData();
     } catch (error) {
       setMessage(
         error.response?.data?.message ||
@@ -1586,17 +1582,23 @@ function SalesOrders() {
     }
   };
 
-  const createOrder = async (quotationId) => {
+  const createOrder = async (e) => {
+    e.preventDefault();
+    setMessage("");
+
+    if (!quotationId) {
+      setMessage("Select an accepted quotation.");
+      return;
+    }
+
     try {
       await api.post("/sales-orders", {
-        quotationId,
+        quotationId: Number(quotationId),
       });
 
-      setMessage(
-        "Sales order created successfully.",
-      );
-
-      loadOrders();
+      setMessage("Sales order created successfully.");
+      setQuotationId("");
+      loadData();
     } catch (error) {
       setMessage(
         error.response?.data?.message ||
@@ -1605,17 +1607,87 @@ function SalesOrders() {
     }
   };
 
-  return (
-    <div className="single-column">
+  const reserveOrder = async (
+    orderId,
+    setMessage,
+    reload,
+  ) => {
+    try {
+      const response = await api.post("/inventory/reserve", {
+        salesOrderId: Number(orderId),
+      });
 
-      {message && (
-        <div className="alert alert-info">
-          {message}
+      setMessage(
+        response.data.message ||
+          "Inventory reserved successfully.",
+      );
+      reload();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message ||
+          "Unable to reserve inventory.",
+      );
+    }
+  };
+
+  const orderQuotationIds = new Set(
+    orders.map((order) => order.quotationId),
+  );
+
+  const availableQuotations = quotations.filter(
+    (quotation) =>
+      quotation.status === "ACCEPTED" &&
+      !orderQuotationIds.has(quotation.id),
+  );
+
+  return (
+    <div className="page-grid">
+      <div className="card form-card">
+        <div className="card-header">
+          <div className="card-title">
+            Create Sales Order
+          </div>
+
+          <div className="card-subtitle">
+            Convert an accepted quotation into a sales order
+          </div>
         </div>
-      )}
+
+        <form className="form" onSubmit={createOrder}>
+          {message && (
+            <div className="alert alert-info">
+              {message}
+            </div>
+          )}
+
+          <FormSelect
+            label="Accepted Quotation"
+            value={quotationId}
+            onChange={setQuotationId}
+            options={availableQuotations.map((quotation) => ({
+              value: quotation.id,
+              label: `${quotation.quotationNumber} - ${quotation.customer?.companyName} - ₹${formatMoney(quotation.grandTotal)}`,
+            }))}
+            required
+          />
+
+          {availableQuotations.length === 0 && (
+            <div className="selected-info">
+              No unused accepted quotations are available.
+            </div>
+          )}
+
+          <button
+            className="btn btn-primary full-width"
+            type="submit"
+            disabled={availableQuotations.length === 0}
+          >
+            + Create Sales Order
+          </button>
+        </form>
+      </div>
 
       <div className="card data-card">
-
         <div className="data-card-header">
           <div>
             <div className="data-card-title">
@@ -1629,7 +1701,7 @@ function SalesOrders() {
 
           <button
             className="btn btn-outline"
-            onClick={loadOrders}
+            onClick={loadData}
           >
             ↻ Refresh
           </button>
@@ -1665,81 +1737,49 @@ function SalesOrders() {
                     </td>
 
                     <td>
-                      {order.quotation
-                        ?.quotationNumber}
+                      {order.quotation?.quotationNumber}
                     </td>
 
                     <td>
-                      ₹
-                      {formatMoney(
-                        order.totalAmount,
-                      )}
+                      ₹{formatMoney(order.totalAmount)}
                     </td>
 
                     <td>
-                      <StatusBadge
-                        status={order.status}
-                      />
+                      <StatusBadge status={order.status} />
                     </td>
 
                     <td>
                       <div className="action-group">
-
-                        {order.status ===
-                          "PENDING" && (
+                        {order.status === "PENDING" && (
                           <button
                             className="btn btn-small btn-primary"
                             onClick={() =>
-                              updateStatus(
-                                order.id,
-                                "CONFIRMED",
-                              )
+                              updateStatus(order.id, "CONFIRMED")
                             }
                           >
                             Confirm
                           </button>
                         )}
 
-                        {order.status ===
-                          "PENDING" && (
+                        {order.status === "PENDING" && (
                           <button
                             className="btn btn-small btn-danger"
                             onClick={() =>
-                              updateStatus(
-                                order.id,
-                                "CANCELLED",
-                              )
+                              updateStatus(order.id, "CANCELLED")
                             }
                           >
                             Cancel
                           </button>
                         )}
 
-                        {order.status ===
-                          "CONFIRMED" && (
-                          <button
-                            className="btn btn-small btn-secondary"
-                            onClick={() =>
-                              reserveOrder(
-                                order.id,
-                                setMessage,
-                                loadOrders,
-                              )
-                            }
-                          >
-                            Reserve
-                          </button>
-                        )}
-
-                        {order.status ===
-                          "CONFIRMED" && (
+                        {order.status === "CONFIRMED" && (
                           <button
                             className="btn btn-small btn-success"
                             onClick={() =>
                               reserveOrder(
                                 order.id,
                                 setMessage,
-                                loadOrders,
+                                loadData,
                               )
                             }
                           >
@@ -1758,14 +1798,11 @@ function SalesOrders() {
 
       <div className="card info-card">
         <div className="info-card-content">
-          <strong>
-            Sales Order Workflow
-          </strong>
+          <strong>Sales Order Workflow</strong>
 
           <span>
-            Accepted Quotation → Sales Order →
-            Confirm → Reserve Inventory →
-            Dispatch
+            Accepted Quotation → Sales Order → Confirm →
+            Reserve Inventory → Dispatch
           </span>
         </div>
       </div>
